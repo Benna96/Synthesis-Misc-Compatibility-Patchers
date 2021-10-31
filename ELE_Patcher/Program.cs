@@ -36,9 +36,6 @@ namespace ELE_Patcher
 		{
 			using var mod = key.Value.GetModAndMasters(state, out var masters);
 
-			var devKey = FormKey.Factory("021EF3:Skyrim.esm");
-			var devKey2 = FormKey.Factory("002F82:Dawnguard.esm");
-
 			Util.WriteLineProgress(true, "Patching ELE image spaces...");
 			foreach (var modded in mod.ImageSpaces)
 			{

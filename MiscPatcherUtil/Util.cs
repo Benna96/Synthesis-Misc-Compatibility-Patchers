@@ -175,6 +175,55 @@ namespace MiscPatcherUtil
 			patched = winner.GetOrAddAsOverride(state.PatchMod);
 			return true;
 		}
+		/// <summary>
+		/// Initializes variables related to the record.<br/>
+		/// Returns false if record doesn't need to be patched.<br/>
+		/// Checks that the record doesn't originate from mod, and that the winning override of the record isn't from mod or a known patch to mod.<br/>
+		/// This overload is for records that need access to a context in order to GetOrAddAsOverride.
+		/// </summary>
+		/// <typeparam name="T"></typeparam>
+		/// <typeparam name="TGetter"></typeparam>
+		/// <param name="modRecord"></param>
+		/// <param name="state"></param>
+		/// <param name="modKey"></param>
+		/// <param name="masters"></param>
+		/// <param name="vanillaRecords"></param>
+		/// <param name="patched"></param>
+		/// <param name="safeToRemove"></param>
+		/// <param name="changed"></param>
+		/// <param name="knownPatches"></param>
+		/// <returns></returns>
+		public static bool InitializeRecordVars<T, TGetter>(this TGetter modRecord, IPatcherState<ISkyrimMod, ISkyrimModGetter> state, ModKey modKey, HashSet<ModKey> masters, out HashSet<TGetter> vanillaRecords, IModContext<ISkyrimMod, ISkyrimModGetter, T, TGetter> winnerContext, [NotNullWhen(true)] out T? patched, out bool changed, HashSet<string>? knownPatches = null)
+			where T : SkyrimMajorRecord, TGetter
+			where TGetter : class, ISkyrimMajorRecordGetter
+		{
+			vanillaRecords = new();
+			patched = null;
+			changed = false;
+			var contexts = state.LinkCache.ResolveAllContexts<T, TGetter>(modRecord.FormKey);
+
+			// Don't patched if record originates from modded, or modded is winning override
+			var origin = contexts.Last();
+			var winner = contexts.First();
+			if (origin.ModKey == modKey || winner.ModKey == modKey)
+				return false;
+
+			// Don't patch if winner is a known patch to the mod.
+			if (knownPatches != null)
+			{
+				var winnerModFile = winner.ModKey.FileName.String;
+				if (knownPatches.Contains(winnerModFile))
+					return false;
+			}
+
+			// Add vanilla records & patched
+			foreach (var context in contexts)
+				if (masters.Contains(context.ModKey))
+					vanillaRecords.Add(context.Record);
+
+			patched = (T)winner.Record.DeepCopy();
+			return true;
+		}
 		#endregion
 
 		#region Internal helpers

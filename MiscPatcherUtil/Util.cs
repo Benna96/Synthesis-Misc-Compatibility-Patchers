@@ -21,6 +21,7 @@ namespace MiscPatcherUtil
 {
 	public static class Util
 	{
+		#region General
 		/// <summary>
 		/// Writes line to console if doWrite is true.<br/>
 		/// Use like Console.Write, except add a bool to the beginning.
@@ -75,7 +76,10 @@ namespace MiscPatcherUtil
 		}
 
 		/// <summary>
-		/// Checks that the record doesn't originate from mod, and that the winning override of the record isn't from mod or a known patch to mod.
+		/// Initializes variables related to the record.<br/>
+		/// Returns false if record doesn't need to be patched.<br/>
+		/// Checks that the record doesn't originate from mod, and that the winning override of the record isn't from mod or a known patch to mod.<br/>
+		/// This overload is for records that can be added to PatchMod using Set.
 		/// </summary>
 		/// <typeparam name="T"></typeparam>
 		/// <typeparam name="TGetter"></typeparam>
@@ -84,22 +88,22 @@ namespace MiscPatcherUtil
 		/// <param name="modKey"></param>
 		/// <param name="masters"></param>
 		/// <param name="vanillaRecords"></param>
-		/// <param name="winner"></param>
 		/// <param name="patched"></param>
+		/// <param name="changed"></param>
 		/// <param name="knownPatches"></param>
 		/// <returns></returns>
-		public static bool CheckAndGetRecordsToWorkWith<T, TGetter>(this TGetter modRecord, IPatcherState<ISkyrimMod, ISkyrimModGetter> state, ModKey modKey, HashSet<ModKey> masters, out HashSet<TGetter> vanillaRecords, out IModContext<ISkyrimMod, ISkyrimModGetter, T, TGetter> winner, [NotNullWhen(true)] out T? patched,
-			HashSet<string>? knownPatches = null)
+		public static bool InitializeRecordVars<T, TGetter>(this TGetter modRecord, IPatcherState<ISkyrimMod, ISkyrimModGetter> state, ModKey modKey, HashSet<ModKey> masters, out HashSet<TGetter> vanillaRecords, [NotNullWhen(true)] out T? patched, out bool changed, HashSet<string>? knownPatches = null)
 			where T : SkyrimMajorRecord, TGetter
 			where TGetter : class, ISkyrimMajorRecordGetter
 		{
 			vanillaRecords = new();
 			patched = null;
+			changed = false;
 			var contexts = state.LinkCache.ResolveAllContexts<T, TGetter>(modRecord.FormKey);
 
-			// Don't patched if record originates from modded, or modded is winning override
+			// Don't patch if record originates from modded, or modded is winning override
 			var origin = contexts.Last();
-			winner = contexts.First();
+			var winner = contexts.First();
 			if (origin.ModKey == modKey || winner.ModKey == modKey)
 				return false;
 
@@ -119,6 +123,59 @@ namespace MiscPatcherUtil
 			patched = (T)winner.Record.DeepCopy();
 			return true;
 		}
+		/// <summary>
+		/// Initializes variables related to the record.<br/>
+		/// Returns false if record doesn't need to be patched.<br/>
+		/// Checks that the record doesn't originate from mod, and that the winning override of the record isn't from mod or a known patch to mod.<br/>
+		/// This overload is for records that need to be added as override through IModContext.
+		/// </summary>
+		/// <typeparam name="T"></typeparam>
+		/// <typeparam name="TGetter"></typeparam>
+		/// <param name="modRecord"></param>
+		/// <param name="state"></param>
+		/// <param name="modKey"></param>
+		/// <param name="masters"></param>
+		/// <param name="vanillaRecords"></param>
+		/// <param name="patched"></param>
+		/// <param name="safeToRemove"></param>
+		/// <param name="changed"></param>
+		/// <param name="knownPatches"></param>
+		/// <returns></returns>
+		public static bool InitializeRecordVars<T, TGetter>(this TGetter modRecord, IPatcherState<ISkyrimMod, ISkyrimModGetter> state, ModKey modKey, HashSet<ModKey> masters, out HashSet<TGetter> vanillaRecords, [NotNullWhen(true)] out T? patched, out bool safeToRemove, out bool changed, HashSet<string>? knownPatches = null)
+			where T : SkyrimMajorRecord, TGetter
+			where TGetter : class, ISkyrimMajorRecordGetter
+		{
+			vanillaRecords = new();
+			patched = null;
+			safeToRemove = changed = false;
+			var contexts = state.LinkCache.ResolveAllContexts<T, TGetter>(modRecord.FormKey);
+
+			// Don't patched if record originates from modded, or modded is winning override
+			var origin = contexts.Last();
+			var winner = contexts.First();
+			if (origin.ModKey == modKey || winner.ModKey == modKey)
+				return false;
+
+			// Don't allow removal of record in case of ITPO if PatchMod was latest override before patching
+			safeToRemove = winner.ModKey != state.PatchMod.ModKey;
+
+			// Don't patch if winner is a known patch to the mod.
+			if (knownPatches != null)
+			{
+				var winnerModFile = winner.ModKey.FileName.String;
+				if (knownPatches.Contains(winnerModFile))
+					return false;
+			}
+
+			// Add vanilla records & patched
+			foreach (var context in contexts)
+				if (masters.Contains(context.ModKey))
+					vanillaRecords.Add(context.Record);
+
+			patched = winner.GetOrAddAsOverride(state.PatchMod);
+			return true;
+		}
+		#endregion
 
 		#region Internal helpers
 		private static float NormalizeRadians2Pi(float radians)
@@ -235,14 +292,14 @@ namespace MiscPatcherUtil
 				return patched;
 		}
 
-		internal static int GetPatchedFlags(int patchedValue, IEnumerable<int> vanillaValues, int moddedValue)
+		internal static int GetPatchedFlags(int patchedValue, IEnumerable<int> vanillaValues, int moddedValue, ref bool changed)
 		{
 			foreach (var vanillaValue in vanillaValues)
-				PatchEachFlag(ref patchedValue, vanillaValue, moddedValue);
+				PatchEachFlag(ref patchedValue, vanillaValue, moddedValue, ref changed);
 
 			return patchedValue;
 
-			void PatchEachFlag(ref int patchedFlags, int vanillaFlags, int moddedFlags)
+			void PatchEachFlag(ref int patchedFlags, int vanillaFlags, int moddedFlags, ref bool changed)
 			{
 				// These return 00111000 etc where if bit is 1 it's been changed
 				var moddedChangedFlags = moddedFlags ^ vanillaFlags;
@@ -256,7 +313,10 @@ namespace MiscPatcherUtil
 				{
 					// Change the corresponding bit if modded changes it but winner doesn't
 					if (moddedChangedBits.Get(i) && !patchedChangedBits.Get(i))
+					{
+						changed = true;
 						patchedFlags ^= (1 << i);
+					}
 				}
 			}
 

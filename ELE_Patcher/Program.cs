@@ -34,42 +34,42 @@ namespace ELE_Patcher
 
 		public static void RunPatch(IPatcherState<ISkyrimMod, ISkyrimModGetter> state)
 		{
-			var startTime = DateTime.Now;
 			using var mod = key.Value.GetModAndMasters(state, out var masters);
 
 			Util.WriteLineProgress(true, "Patching ELE image spaces...");
 			foreach (var modded in mod.ImageSpaces)
 			{
-				if (!modded.CheckAndGetRecordsToWorkWith(state, key.Value, masters, out var vanillas, out var winnerContext, out ImageSpace? patched))
+				if (!modded.InitializeRecordVars(state, key.Value, masters, out var vanillas, out ImageSpace? patched, out var changed))
 					continue;
 
-				patched.PatchHdr(vanillas, modded);
-				patched.PatchCinematic(vanillas, modded);
-				patched.PatchTint(vanillas, modded);
+				patched.PatchHdr(vanillas, modded, ref changed);
+				patched.PatchCinematic(vanillas, modded, ref changed);
+				patched.PatchTint(vanillas, modded, ref changed);
 
-				if (!patched.Equals(winnerContext.Record))
+				if (changed)
 					state.PatchMod.ImageSpaces.Set(patched);
 			}
 
 			Util.WriteLineProgress(true, "Patching ELE lights...");
 			foreach (var modded in mod.Lights)
 			{
-				if (!modded.CheckAndGetRecordsToWorkWith(state, key.Value, masters, out var vanillas, out var winnerContext, out Light? patched))
+				if (!modded.InitializeRecordVars(state, key.Value, masters, out var vanillas, out Light? patched, out var changed))
 					continue;
 
 				patched.GetMasks(vanillas, modded, out var moddedEquals, out var vanillasEqual, out var doCopy);
+				var doCopyBackup = doCopy;
 
-				patched.PatchRecordFlags(vanillas, modded);
-				patched.PatchFlags(vanillas, modded);
+				patched.PatchRecordFlags(vanillas, modded, ref changed);
+				patched.PatchFlags(vanillas, modded, ref changed);
 
-				doCopy.MaskObjectBounds(vanillasEqual, moddedEquals);
-				doCopy.MaskRadius(vanillasEqual, moddedEquals);
-				doCopy.MaskColor(vanillasEqual, moddedEquals);
-				doCopy.MaskNearClip(vanillasEqual, moddedEquals);
-				doCopy.MaskFadeValue(vanillasEqual, moddedEquals);
+				doCopy.MaskObjectBounds(vanillasEqual, moddedEquals, ref changed);
+				doCopy.MaskRadius(vanillasEqual, moddedEquals, ref changed);
+				doCopy.MaskColor(vanillasEqual, moddedEquals, ref changed);
+				doCopy.MaskNearClip(vanillasEqual, moddedEquals, ref changed);
+				doCopy.MaskFadeValue(vanillasEqual, moddedEquals, ref changed);
 				patched.DeepCopyIn(modded, doCopy);
 
-				if (!patched.Equals(winnerContext.Record))
+				if (changed)
 					state.PatchMod.Lights.Set(patched);
 			}
 
@@ -77,15 +77,15 @@ namespace ELE_Patcher
 			var worldspaces = mod.AsEnumerable().Worldspace().WinningOverrides();
 			foreach (var modded in worldspaces)
 			{
-				if (!modded.CheckAndGetRecordsToWorkWith(state, key.Value, masters, out var vanillas, out var winnerContext, out Worldspace? patched))
+				if (!modded.InitializeRecordVars(state, key.Value, masters, out var vanillas, out Worldspace? patched, out var changed))
 					continue;
 
 				patched.GetMasks(vanillas, modded, out var moddedEquals, out var vanillasEqual, out var doCopy);
 
-				doCopy.MaskInteriorLighting(vanillasEqual, moddedEquals);
+				doCopy.MaskInteriorLighting(vanillasEqual, moddedEquals, ref changed);
 				patched.DeepCopyIn(modded, doCopy);
 
-				if (!patched.Equals(winnerContext.Record))
+				if (changed)
 					state.PatchMod.Worldspaces.Set(patched);
 			}
 
@@ -93,23 +93,22 @@ namespace ELE_Patcher
 			var cells = mod.AsEnumerable().Cell().WinningOverrides();
 			foreach (var modded in cells)
 			{
-				if (!modded.CheckAndGetRecordsToWorkWith(state, key.Value, masters, out var vanillas, out var winnerContext, out Cell? _))
+				if (!modded.InitializeRecordVars(state, key.Value, masters, out var vanillas, out Cell? patched, out bool safeToRemove, out var changed))
 					continue;
 
-				var patched = winnerContext.GetOrAddAsOverride(state.PatchMod);
 				patched.GetMasks(vanillas, modded, out var moddedEquals, out var vanillasEqual, out var doCopy);
 
-				patched.PatchFlags(vanillas, modded);
+				patched.PatchFlags(vanillas, modded, ref changed);
 
-				doCopy.MaskLighting(vanillasEqual, moddedEquals);
-				doCopy.MaskLightingTemplate(vanillasEqual, moddedEquals);
-				doCopy.MaskWaterHeight(vanillasEqual, moddedEquals);
-				doCopy.MaskWaterNoiseTexture(vanillasEqual, moddedEquals);
-				doCopy.MaskSkyAndWeather(vanillasEqual, moddedEquals);
-				doCopy.MaskImageSpace(vanillasEqual, moddedEquals);
+				doCopy.MaskLighting(vanillasEqual, moddedEquals, ref changed);
+				doCopy.MaskLightingTemplate(vanillasEqual, moddedEquals, ref changed);
+				doCopy.MaskWaterHeight(vanillasEqual, moddedEquals, ref changed);
+				doCopy.MaskWaterNoiseTexture(vanillasEqual, moddedEquals, ref changed);
+				doCopy.MaskSkyAndWeather(vanillasEqual, moddedEquals, ref changed);
+				doCopy.MaskImageSpace(vanillasEqual, moddedEquals, ref changed);
 				patched.DeepCopyIn(modded, doCopy);
 
-				if (winnerContext.ModKey != state.PatchMod.ModKey && patched.Equals(winnerContext.Record))
+				if (safeToRemove && !changed)
 					state.PatchMod.Remove<Cell>(modded.FormKey);
 			}
 
@@ -117,41 +116,26 @@ namespace ELE_Patcher
 			var placedObjects = mod.AsEnumerable().PlacedObject().WinningOverrides();
 			foreach (var modded in placedObjects)
 			{
-				if (!modded.CheckAndGetRecordsToWorkWith(state, key.Value, masters, out var vanillas, out var winnerContext, out PlacedObject? _))
+				if (!modded.InitializeRecordVars(state, key.Value, masters, out var vanillas, out PlacedObject? patched, out var safeToRemove, out var changed))
 					continue;
 
-				var patched = winnerContext.GetOrAddAsOverride(state.PatchMod);
 				patched.GetMasks(vanillas, modded, out var moddedEquals, out var vanillasEqual, out var doCopy);
 
-				patched.PatchRecordFlags(vanillas, modded);
-				patched.PatchPrimitive(vanillas, modded);
-				patched.PatchLightData(vanillas, modded);
+				patched.PatchRecordFlags(vanillas, modded, ref changed);
+				patched.PatchPrimitive(vanillas, modded, ref changed);
+				patched.PatchLightData(vanillas, modded, ref changed);
 
-				doCopy.MaskBoundHalfExtents(vanillasEqual, moddedEquals);
-				doCopy.MaskUnknown(vanillasEqual, moddedEquals);
-				doCopy.MaskLightingTemplate(vanillasEqual, moddedEquals);
-				doCopy.MaskImageSpace(vanillasEqual, moddedEquals);
-				doCopy.MaskLocationRef(vanillasEqual, moddedEquals);
-				doCopy.MaskPlacement(vanillasEqual, moddedEquals);
+				doCopy.MaskBoundHalfExtents(vanillasEqual, moddedEquals, ref changed);
+				doCopy.MaskUnknown(vanillasEqual, moddedEquals, ref changed);
+				doCopy.MaskLightingTemplate(vanillasEqual, moddedEquals, ref changed);
+				doCopy.MaskImageSpace(vanillasEqual, moddedEquals, ref changed);
+				doCopy.MaskLocationRef(vanillasEqual, moddedEquals, ref changed);
+				doCopy.MaskPlacement(vanillasEqual, moddedEquals, ref changed);
 				patched.DeepCopyIn(modded, doCopy);
 
-				if (winnerContext.ModKey != state.PatchMod.ModKey && patched.Equals(winnerContext.Record))
+				if (safeToRemove && !changed)
 					state.PatchMod.Remove<PlacedObject>(patched.FormKey);
 			}
-
-			var endTime = DateTime.Now;
-			Util.WriteLineProgress(true, $"Took this long: {endTime - startTime}");
 		}
 	}
 }
-
-/* Progress bar to perhaps implement one day... 
- * Doesn't work with Synthesis' console, seem it can't rewrite a line */
-/*decimal newPercentage = 100m * (index + 1) / cells.Count();
-if ((int)newPercentage > percentage)
-{
-	percentage = (int)newPercentage;
-	string percentsString = $"{percentage}%";
-	//percentage = 2.0695m;
-	Util.WriteProgress(true, $"\rPatching ELE cells... {percentsString,-4}");
-}*/

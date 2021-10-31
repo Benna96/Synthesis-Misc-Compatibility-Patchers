@@ -92,7 +92,6 @@ namespace MiscPatcherUtil
 					mask.Lighting.Specific!.LightFadeEnd = Util.NearlyEquals(firstL.LightFadeEnd, secondL.LightFadeEnd, 0.000001f);
 					mask.Lighting.Specific!.FogNear = Util.NearlyEquals(firstL.FogNear, secondL.FogNear, 0.000001f);
 					mask.Lighting.Specific!.FogFar = Util.NearlyEquals(firstL.FogFar, secondL.FogFar, 0.000001f);
-					/*mask.Lighting.Specific!.Scale = Util.FloatsNearlyEqual(firstL.Scale, secondL.Scale, 0.000001f);*/
 				}
 
 				// Null:Skyrim.esm to Null
@@ -141,97 +140,125 @@ namespace MiscPatcherUtil
 	public static class MaskField
 	{
 		#region Light specific
-		public static void MaskObjectBounds(this Light.TranslationMask doCopy, HashSet<Light.Mask<bool>> vanillasEqual, Light.Mask<bool> moddedEquals)
+		public static void MaskObjectBounds(this Light.TranslationMask doCopy, HashSet<Light.Mask<bool>> vanillasEqual, Light.Mask<bool> moddedEquals, ref bool changed)
 		{
 			bool moddedBoundedEquals = moddedEquals.ObjectBounds?.Specific?.All(x => x) ?? false;
 			bool anyVanillaBoundedEquals = vanillasEqual.Any(x => x.ObjectBounds?.Specific?.All(y => y) ?? false);
 
 			if (!moddedBoundedEquals && anyVanillaBoundedEquals)
+			{
+				changed = true;
 				doCopy.ObjectBounds = new(true);
+			}
 		}
-		public static void MaskRadius(this Light.TranslationMask doCopy, HashSet<Light.Mask<bool>> vanillasEqual, Light.Mask<bool> moddedEquals)
+		public static void MaskRadius(this Light.TranslationMask doCopy, HashSet<Light.Mask<bool>> vanillasEqual, Light.Mask<bool> moddedEquals, ref bool changed)
 		{
 			doCopy.Radius = !moddedEquals.Radius && vanillasEqual.Any(x => x.Radius);
+			if (doCopy.Radius)
+				changed = true;
 		}
-		public static void MaskColor(this Light.TranslationMask doCopy, HashSet<Light.Mask<bool>> vanillasEqual, Light.Mask<bool> moddedEquals)
+		public static void MaskColor(this Light.TranslationMask doCopy, HashSet<Light.Mask<bool>> vanillasEqual, Light.Mask<bool> moddedEquals, ref bool changed)
 		{
 			doCopy.Color = !moddedEquals.Color && vanillasEqual.Any(x => x.Color);
+			if (doCopy.Color)
+				changed = true;
 		}
-		public static void MaskNearClip(this Light.TranslationMask doCopy, HashSet<Light.Mask<bool>> vanillasEqual, Light.Mask<bool> moddedEquals)
+		public static void MaskNearClip(this Light.TranslationMask doCopy, HashSet<Light.Mask<bool>> vanillasEqual, Light.Mask<bool> moddedEquals, ref bool changed)
 		{
 			doCopy.NearClip = !moddedEquals.NearClip && vanillasEqual.Any(x => x.NearClip);
+			if (doCopy.NearClip)
+				changed = true;
 		}
-		public static void MaskFadeValue(this Light.TranslationMask doCopy, HashSet<Light.Mask<bool>> vanillasEqual, Light.Mask<bool> moddedEquals)
+		public static void MaskFadeValue(this Light.TranslationMask doCopy, HashSet<Light.Mask<bool>> vanillasEqual, Light.Mask<bool> moddedEquals, ref bool changed)
 		{
 			doCopy.FadeValue = !moddedEquals.FadeValue && vanillasEqual.Any(x => x.FadeValue);
+			if (doCopy.FadeValue)
+				changed = true;
 		}
 		#endregion
 
 		#region Worldspace specific
-		public static void MaskInteriorLighting(this Worldspace.TranslationMask doCopy, HashSet<Worldspace.Mask<bool>> vanillasEqual, Worldspace.Mask<bool> moddedEquals)
+		public static void MaskInteriorLighting(this Worldspace.TranslationMask doCopy, HashSet<Worldspace.Mask<bool>> vanillasEqual, Worldspace.Mask<bool> moddedEquals, ref bool changed)
 		{
 			doCopy.InteriorLighting = !moddedEquals.InteriorLighting && vanillasEqual.Any(x => x.InteriorLighting);
+			changed = doCopy.InteriorLighting ? true : changed;
 		}
 
 		#endregion
 		#region Cell specific
-		public static void MaskLighting(this Cell.TranslationMask doCopy, HashSet<Cell.Mask<bool>> vanillasEqual, Cell.Mask<bool> moddedEquals)
+		public static void MaskLighting(this Cell.TranslationMask doCopy, HashSet<Cell.Mask<bool>> vanillasEqual, Cell.Mask<bool> moddedEquals, ref bool changed)
 		{
 			bool moddedLightingEquals = moddedEquals.Lighting?.Specific?.All(x => x) ?? false;
 			bool anyVanillaLightingEquals = vanillasEqual.Any(x => x.Lighting?.Specific?.All(y => y) ?? false);
 
 			if (!moddedLightingEquals && anyVanillaLightingEquals)
+			{
+				changed = true;
 				doCopy.Lighting = new(true);
+			}
 		}
-		public static void MaskLightingTemplate(this Cell.TranslationMask doCopy, HashSet<Cell.Mask<bool>> vanillasEqual, Cell.Mask<bool> moddedEquals)
+		public static void MaskLightingTemplate(this Cell.TranslationMask doCopy, HashSet<Cell.Mask<bool>> vanillasEqual, Cell.Mask<bool> moddedEquals, ref bool changed)
 		{
 			doCopy.LightingTemplate = !moddedEquals.LightingTemplate && vanillasEqual.Any(x => x.LightingTemplate);
+			changed = doCopy.LightingTemplate ? true : changed;
 		}
-		public static void MaskWaterHeight(this Cell.TranslationMask doCopy, HashSet<Cell.Mask<bool>> vanillasEqual, Cell.Mask<bool> moddedEquals)
+		public static void MaskWaterHeight(this Cell.TranslationMask doCopy, HashSet<Cell.Mask<bool>> vanillasEqual, Cell.Mask<bool> moddedEquals, ref bool changed)
 		{
 			doCopy.WaterHeight = !moddedEquals.WaterHeight && vanillasEqual.Any(x => x.WaterHeight);
+			changed = doCopy.WaterHeight ? true : changed;
 		}
-		public static void MaskWaterNoiseTexture(this Cell.TranslationMask doCopy, HashSet<Cell.Mask<bool>> vanillasEqual, Cell.Mask<bool> moddedEquals)
+		public static void MaskWaterNoiseTexture(this Cell.TranslationMask doCopy, HashSet<Cell.Mask<bool>> vanillasEqual, Cell.Mask<bool> moddedEquals, ref bool changed)
 		{
 			doCopy.WaterNoiseTexture = !moddedEquals.WaterNoiseTexture && vanillasEqual.Any(x => x.WaterNoiseTexture);
+			changed = doCopy.WaterNoiseTexture ? true : changed;
 		}
-		public static void MaskSkyAndWeather(this Cell.TranslationMask doCopy, HashSet<Cell.Mask<bool>> vanillasEqual, Cell.Mask<bool> moddedEquals)
+		public static void MaskSkyAndWeather(this Cell.TranslationMask doCopy, HashSet<Cell.Mask<bool>> vanillasEqual, Cell.Mask<bool> moddedEquals, ref bool changed)
 		{
 			doCopy.SkyAndWeatherFromRegion = !moddedEquals.SkyAndWeatherFromRegion && vanillasEqual.Any(x => x.SkyAndWeatherFromRegion);
+			changed = doCopy.SkyAndWeatherFromRegion ? true : changed;
 		}
-		public static void MaskImageSpace(this Cell.TranslationMask doCopy, HashSet<Cell.Mask<bool>> vanillasEqual, Cell.Mask<bool> moddedEquals)
+		public static void MaskImageSpace(this Cell.TranslationMask doCopy, HashSet<Cell.Mask<bool>> vanillasEqual, Cell.Mask<bool> moddedEquals, ref bool changed)
 		{
 			doCopy.ImageSpace = !moddedEquals.ImageSpace && vanillasEqual.Any(x => x.ImageSpace);
+			changed = doCopy.ImageSpace ? true : changed;
 		}
 		#endregion
 		#region Placed object specific
-		public static void MaskBoundHalfExtents(this PlacedObject.TranslationMask doCopy, HashSet<PlacedObject.Mask<bool>> vanillasEqual, PlacedObject.Mask<bool> moddedEquals)
+		public static void MaskBoundHalfExtents(this PlacedObject.TranslationMask doCopy, HashSet<PlacedObject.Mask<bool>> vanillasEqual, PlacedObject.Mask<bool> moddedEquals, ref bool changed)
 		{
 			doCopy.BoundHalfExtents = !moddedEquals.BoundHalfExtents && vanillasEqual.Any(x => x.BoundHalfExtents);
+			changed = doCopy.BoundHalfExtents ? true : changed;
 		}
-		public static void MaskUnknown(this PlacedObject.TranslationMask doCopy, HashSet<PlacedObject.Mask<bool>> vanillasEqual, PlacedObject.Mask<bool> moddedEquals)
+		public static void MaskUnknown(this PlacedObject.TranslationMask doCopy, HashSet<PlacedObject.Mask<bool>> vanillasEqual, PlacedObject.Mask<bool> moddedEquals, ref bool changed)
 		{
 			doCopy.Unknown = !moddedEquals.Unknown && vanillasEqual.Any(x => x.Unknown);
+			changed = doCopy.Unknown ? true : changed;
 		}
-		public static void MaskLightingTemplate(this PlacedObject.TranslationMask doCopy, HashSet<PlacedObject.Mask<bool>> vanillasEqual, PlacedObject.Mask<bool> moddedEquals)
+		public static void MaskLightingTemplate(this PlacedObject.TranslationMask doCopy, HashSet<PlacedObject.Mask<bool>> vanillasEqual, PlacedObject.Mask<bool> moddedEquals, ref bool changed)
 		{
 			doCopy.LightingTemplate = !moddedEquals.LightingTemplate && vanillasEqual.Any(x => x.LightingTemplate);
+			changed = doCopy.LightingTemplate ? true : changed;
 		}
-		public static void MaskImageSpace(this PlacedObject.TranslationMask doCopy, HashSet<PlacedObject.Mask<bool>> vanillasEqual, PlacedObject.Mask<bool> moddedEquals)
+		public static void MaskImageSpace(this PlacedObject.TranslationMask doCopy, HashSet<PlacedObject.Mask<bool>> vanillasEqual, PlacedObject.Mask<bool> moddedEquals, ref bool changed)
 		{
 			doCopy.ImageSpace = !moddedEquals.ImageSpace && vanillasEqual.Any(x => x.ImageSpace);
+			changed = doCopy.ImageSpace ? true : changed;
 		}
-		public static void MaskLocationRef(this PlacedObject.TranslationMask doCopy, HashSet<PlacedObject.Mask<bool>> vanillasEqual, PlacedObject.Mask<bool> moddedEquals)
+		public static void MaskLocationRef(this PlacedObject.TranslationMask doCopy, HashSet<PlacedObject.Mask<bool>> vanillasEqual, PlacedObject.Mask<bool> moddedEquals, ref bool changed)
 		{
 			doCopy.LocationReference = !moddedEquals.LocationReference && vanillasEqual.Any(x => x.LocationReference);
+			changed = doCopy.LocationReference ? true : changed;
 		}
-		public static void MaskPlacement(this PlacedObject.TranslationMask doCopy, HashSet<PlacedObject.Mask<bool>> vanillasEqual, PlacedObject.Mask<bool> moddedEquals)
+		public static void MaskPlacement(this PlacedObject.TranslationMask doCopy, HashSet<PlacedObject.Mask<bool>> vanillasEqual, PlacedObject.Mask<bool> moddedEquals, ref bool changed)
 		{
 			bool moddedPlacementEquals = moddedEquals.Placement?.Specific?.All(x => x) ?? false;
 			bool anyVanillaPlacementEquals = vanillasEqual.Any(x => x.Placement?.Specific?.All(y => y) ?? false);
 
 			if (!moddedPlacementEquals && anyVanillaPlacementEquals)
+			{
+				changed = true;
 				doCopy.Placement = new(true);
+			}
 		}
 		#endregion
 	}

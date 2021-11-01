@@ -2,7 +2,7 @@
 
 ## Description
 
-Carries over all changes from [Enhanced Lighting for ENB](https://www.nexusmods.com/skyrimspecialedition/mods/1377).
+Carries over all changes from [Enhanced Lighting for ENB](https://www.nexusmods.com/skyrimspecialedition/mods/1377). Doesn't affect modded locations currently.
 
 Includes changes:
 - Image Spaces: HDR, cinematic, tint

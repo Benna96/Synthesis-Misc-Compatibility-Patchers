@@ -1,8 +1,8 @@
 {
   "Nickname": "ELE Patcher",
-  "Visibility": "Exclude",
+  "Visibility": "Include But Hide",
   "OneLineDescription": "Enhanced Lighting for ENB patcher",
-  "LongDescription": "Synthesis patcher for Enhanced Lighting for ENB.\r\nOnly supports SkyrimSE version for now.",
+  "LongDescription": "Old version. Please don't use this!",
   "PreferredAutoVersioning": "Default",
   "RequiredMods": [
     "ELE_SSE.esp"

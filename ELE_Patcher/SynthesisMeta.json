@@ -1,6 +1,6 @@
 {
   "Nickname": "ELE Patcher",
-  "Visibility": "IncludeButHide",
+  "Visibility": "Exclude",
   "OneLineDescription": "Enhanced Lighting for ENB patcher",
   "LongDescription": "Old version. Please don't use this!",
   "PreferredAutoVersioning": "Default",

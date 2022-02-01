@@ -243,13 +243,13 @@ namespace MiscPatcherUtil
 		}
 
 		internal static void FixNull<TFormLink>(this TFormLink linkToFix)
-			where TFormLink : IFormLink<IMajorRecordCommonGetter>
+			where TFormLink : IFormLink<IMajorRecordGetter>
 		{
 			if (linkToFix.IsNull)
 				linkToFix.SetToNull();
 		}
 		internal static TFormLink WithFixedNull<TFormLink>(this TFormLink linkToFix)
-			where TFormLink : IFormLink<IMajorRecordCommonGetter>
+			where TFormLink : IFormLink<IMajorRecordGetter>
 		{
 			linkToFix.FixNull();
 			return linkToFix;
